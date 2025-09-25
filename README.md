@@ -67,7 +67,7 @@ if __name__ == "__main__":
     try:  
         with iLibrary.Library(DB_USER, DB_PASSWORD, DB_SYSTEM, DB_DRIVER) as lib:  
             #try to get the SAVF File from the IBM i Server  
-            result = lib.getInfoForLibrary('ALBEER1')  
+            result = lib.getInfoForLibrary('LIB_NAME')  
             print(f"Query result: {result}")  
   
     except Exception as e:  

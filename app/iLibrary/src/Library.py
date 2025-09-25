@@ -145,7 +145,7 @@ class Library:
     # saveLibrary - creating a Savefile and sending to the
     #               IFS
     # ------------------------------------------------------
-    def saveLibrary(self, library:str, saveFileName:str, description:str=None, localPath:str=None, remPath:str=None, getZip:bool=False, port:int=22 ) -> bool:
+    def saveLibrary(self, library:str, saveFileName:str, description:str=None, localPath:str=None, remPath:str=None, getZip:bool=False, port:int=None ) -> bool:
         """
             Saves a complete library from the IBM i to a save file.
 
@@ -207,9 +207,11 @@ class Library:
                             # Execute the command on the remote system
                             cursor.execute("CALL QSYS2.QCMDEXC(?)", (command_str,))
 
-                            if not self.__getZipFile(localFilePath=destination_local_path,
-                                                     remotePath=remote_temp_savf_path):
+                            if self.__getZipFile(localFilePath=destination_local_path,
+                                                     remotePath=remote_temp_savf_path, port=port):
 
+                                print(f"File successfully downloaded to: {destination_local_path}")
+                            else:
                                 raise ValueError("Something went wrong. With downloading the Save File.")
 
                         except Exception as e:
@@ -222,9 +224,7 @@ class Library:
                 return False
             else:
                 self.conn.commit()
-                if getZip:
-                    print(f"File successfully downloaded to: {destination_local_path}")
-                    return True
+
 
                 print(f"Successfully saved in the Library '{library}' successfully.")
                 return True
