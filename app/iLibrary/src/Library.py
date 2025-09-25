@@ -207,11 +207,9 @@ class Library:
                             # Execute the command on the remote system
                             cursor.execute("CALL QSYS2.QCMDEXC(?)", (command_str,))
 
-                            if self.__getZipFile(localFilePath=destination_local_path,
+                            if not self.__getZipFile(localFilePath=destination_local_path,
                                                      remotePath=remote_temp_savf_path, port=port):
 
-                                print(f"File successfully downloaded to: {destination_local_path}")
-                            else:
                                 raise ValueError("Something went wrong. With downloading the Save File.")
 
                         except Exception as e:
@@ -224,7 +222,9 @@ class Library:
                 return False
             else:
                 self.conn.commit()
-
+                if getZip:
+                    print(f"File successfully downloaded to: {destination_local_path}")
+                    return True
 
                 print(f"Successfully saved in the Library '{library}' successfully.")
                 return True
