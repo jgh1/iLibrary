@@ -207,9 +207,11 @@ class Library:
                             # Execute the command on the remote system
                             cursor.execute("CALL QSYS2.QCMDEXC(?)", (command_str,))
 
-                            if not self.__getZipFile(localFilePath=destination_local_path,
+                            if  self.__getZipFile(localFilePath=destination_local_path,
                                                      remotePath=remote_temp_savf_path, port=port):
-
+                                rmvCommand = f"QSH CMD('rm -r {remote_temp_savf_path}')"
+                                cursor.execute("CALL QSYS2.QCMDEXC(?)", (rmvCommand))
+                            else:
                                 raise ValueError("Something went wrong. With downloading the Save File.")
 
                         except Exception as e:

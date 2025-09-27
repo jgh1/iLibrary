@@ -5,7 +5,7 @@ with open("README.md", "r", encoding = "utf-8") as fh:
 
 setup(  # Note: no 'setuptools.' prefix here
     name = "iLibrary",
-    version = "0.0.2",
+    version = "0.0.3",
     author = "Andreas Legner",
     author_email = "iLibrary@legner.beer",
     description = "iLibrary - Tools for IBM i",
@@ -18,6 +18,7 @@ setup(  # Note: no 'setuptools.' prefix here
     classifiers = [
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
+        "Development Status :: 4 - Beta",
         "Operating System :: OS Independent",
     ],
     package_dir = {"": "app"},

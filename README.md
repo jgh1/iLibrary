@@ -1,7 +1,7 @@
-## iLibrary
+## iLibrary [![PyPI Downloads](https://static.pepy.tech/personalized-badge/ilibrary?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=MAGENTA&left_text=downloads)](https://pepy.tech/projects/ilibrary)
   
 This class provides methods to connect to the system via pyodbc for SQL and paramiko for SFTP transfers.  
-  
+
 ### Modules  required
   ---
 * json  
