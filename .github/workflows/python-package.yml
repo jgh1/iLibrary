@@ -21,6 +21,8 @@ jobs:
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       DB_NAME: ${{ secrets.DB_NAME }}
+      DB_LIB: ${{ secrets.DB_LIB }}
+      DB_REMPATH: ${{ secrets.DB_REMPATH }}
 
     steps:
     - uses: actions/checkout@v4
