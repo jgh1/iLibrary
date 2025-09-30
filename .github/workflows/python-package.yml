@@ -63,4 +63,4 @@ jobs:
     # Tests will connect using the injected secrets and the installed ODBC driver
     - name: Test with pytest
       run: |
-        pytest
+        pytest app/iLibrary/tests 
