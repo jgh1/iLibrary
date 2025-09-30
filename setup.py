@@ -5,15 +5,16 @@ with open("README.md", "r", encoding = "utf-8") as fh:
 
 setup(  # Note: no 'setuptools.' prefix here
     name = "iLibrary",
-    version = "0.0.3",
+    version = "0.0.4",
     author = "Andreas Legner",
     author_email = "iLibrary@legner.beer",
-    description = "iLibrary - Tools for IBM i",
+    description = "iLibrary - Tools for IBM i library",
     long_description = long_description,
     long_description_content_type = "text/markdown",
     url = "https://legner.beer",
     project_urls = {
         "Bug Tracker": "https://legner.beer/bugs",
+        "Git Hub": "https://github.com/jgh1/iLibrary"
     },
     classifiers = [
         "Programming Language :: Python :: 3",

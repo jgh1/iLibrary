@@ -1,0 +1,11 @@
+# requirements.txt
+# This file lists all third-party dependencies required by your code.
+
+# SSH/SFTP library
+paramiko
+
+# ODBC Database connectivity library (required for pyodbc.connect)
+pyodbc
+
+# Library to load environment variables from a .env file
+python-dotenv

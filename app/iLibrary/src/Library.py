@@ -67,7 +67,7 @@ class Library:
     # getInfoForLibrary - get all Infos over SQL about
     #                     the Library
     # ------------------------------------------------------
-    def getInfoForLibrary(self, library:str, wantJson=True) -> None:
+    def getInfoForLibrary(self, library:str, wantJson=True) -> str:
         """
         Retrieves information about a specific library.
 
@@ -145,7 +145,7 @@ class Library:
     # saveLibrary - creating a Savefile and sending to the
     #               IFS
     # ------------------------------------------------------
-    def saveLibrary(self, library:str, saveFileName:str, description:str=None, localPath:str=None, remPath:str=None, getZip:bool=False, port:int=None ) -> bool:
+    def saveLibrary(self, library:str, saveFileName:str, toLibrary:str=None, description:str=None, localPath:str=None, remPath:str=None, getZip:bool=False, port:int=None, remSavf=True ) -> bool:
         """
             Saves a complete library from the IBM i to a save file.
 
@@ -176,6 +176,8 @@ class Library:
             raise ValueError("A library name is required.")
         if not saveFileName:
             raise ValueError("A save file name is required.")
+        if not toLibrary:
+            toLibrary = library
         if getZip:
             if not remPath:
                 raise ValueError("A remote path is required. Use 'remPath' instead.")
@@ -187,9 +189,9 @@ class Library:
                 localPath = localPath[:-1]
 
         #starting with mem main Sourcecode of saveLLibrary
-        if self.__crtsavf(saveFileName, library, description):
+        if self.__crtsavf(saveFileName, toLibrary, description):
 
-            command_str: str = f"SAVLIB LIB({library}) DEV(*SAVF) SAVF({library}/{saveFileName})"
+            command_str: str = f"SAVLIB LIB({library}) DEV(*SAVF) SAVF({toLibrary}/{saveFileName})"
             try:
                 with self.conn.cursor() as cursor:
                     # execute the Command for creating a Savefile.
@@ -200,7 +202,7 @@ class Library:
 
                             destination_local_path = join(localPath, saveFileName.upper() + '.savf')
                             command_str = (
-                                f"CPYTOSTMF FROMMBR('/QSYS.LIB/{library.upper()}.LIB/{saveFileName.upper()}.FILE') "
+                                f"CPYTOSTMF FROMMBR('/QSYS.LIB/{toLibrary.upper()}.LIB/{saveFileName.upper()}.FILE') "
                                 f"TOSTMF('{remote_temp_savf_path}') STMFOPT(*REPLACE)"
                             )
 
@@ -213,9 +215,11 @@ class Library:
                                 cursor.execute("CALL QSYS2.QCMDEXC(?)", (rmvCommand))
                             else:
                                 raise ValueError("Something went wrong. With downloading the Save File.")
+                            if remSavf:
+                                if not self.removeFile(library=toLibrary, saveFileName=saveFileName):
+                                    raise ValueError(f"The Save File {saveFileName} was not successfully removed.")
 
                         except Exception as e:
-
                             print(f"An error occurred during the transfer process: {e}")
 
             except Exception as e:
@@ -337,6 +341,30 @@ class Library:
 
         finally:
             pass
+
+    def removeFile(self, library:str, saveFileName:str) -> bool:
+        """
+        Remove a saved file from the library on the AS400.
+        :param library: The name of the library where the save file will be created.
+        :param saveFileName: The name of the save file to be created.
+        :return:
+        Boolean: True if the file was removed successfully, False otherwise.
+        """
+        command_str: str = f"DLTF FILE({library.upper()}/{saveFileName.upper()})"
+        print(command_str)
+        try:
+            with self.conn.cursor() as cursor:
+                # execute the Command for deleting a Savefile.
+                cursor.execute("CALL QSYS2.QCMDEXC(?)", (command_str))
+
+        except Exception as e:
+            print(f"An error occurred while executing command, with deleting SavFile: {e}")
+            self.conn.rollback()
+            return False
+        else:
+            self.conn.commit()
+            return True
+
 
     # ------------------------------------------------------
     # iClose - close connection
