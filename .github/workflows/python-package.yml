@@ -16,7 +16,7 @@ jobs:
 
     # 1. Inject SECRETS as Environment Variables for the entire job
     env:
-      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_HOST: ${{ secrets.DB_SYSTEM }}
       DB_PORT: ${{ secrets.DB_PORT }}
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
