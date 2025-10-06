@@ -11,4 +11,3 @@ pyodbc
 python-dotenv
 
 datetime
-pypi-cdecimal
