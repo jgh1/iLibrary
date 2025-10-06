@@ -15,8 +15,10 @@ DB_SYSTEM = os.environ.get("DB_SYSTEM")
 if __name__ == "__main__":
     try:
         with iLibrary.Library(DB_USER, DB_PASSWORD, DB_SYSTEM, DB_DRIVER) as lib:
+            #result = lib.saveLibrary(library='ALBEER1', saveFileName='TEstFi1e', getZip=True, localPath=join(dirname(__file__)), remPath='/home/ALBEER/', port=2222, toLibrary='ALBEER1', remSavf=False)
             #try to get the SAVF File from the IBM i Server
-            result = lib.saveLibrary(library='YOUR_LIB',   saveFileName='SAVEFILE_NAME', getZip=True, localPath=join(dirname(__file__)), remPath='/home/USERNAME/')
+            #result = lib.removeSaveFile(library='ALBEER2', saveFileName='TE16ST')
+            result = lib.getFileInfo('ACERBIS2', qFiles=False)
             print(f"Query result: {result}")
 
     except Exception as e:

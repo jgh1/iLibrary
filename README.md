@@ -86,7 +86,7 @@ Remove a saved file from the library on the AS400.
 if __name__ == "__main__":  
     try:  
         with iLibrary.Library(DB_USER, DB_PASSWORD, DB_SYSTEM, DB_DRIVER) as lib:  
-            result = lib.removeSaveFile(library='LIB_NAME', saveFileName='SAVE_FILE_NAME') 
+            result = lib.removeFile(library='LIB_NAME', saveFileName='SAVE_FILE_NAME') 
             print(f"Query result: {result}")  
   
     except Exception as e:  

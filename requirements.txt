@@ -9,3 +9,6 @@ pyodbc
 
 # Library to load environment variables from a .env file
 python-dotenv
+
+datetime
+decimal

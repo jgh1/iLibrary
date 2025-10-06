@@ -2,6 +2,10 @@ from os.path import join
 import paramiko
 import pyodbc
 import json
+from datetime import datetime, date
+from decimal import Decimal
+
+
 
 
 class Library:
@@ -145,7 +149,18 @@ class Library:
     # saveLibrary - creating a Savefile and sending to the
     #               IFS
     # ------------------------------------------------------
-    def saveLibrary(self, library:str, saveFileName:str, toLibrary:str=None, description:str=None, localPath:str=None, remPath:str=None, getZip:bool=False, port:int=None, remSavf=True ) -> bool:
+    def saveLibrary(self,
+                    library:str,
+                    saveFileName:str,
+                    toLibrary:str=None,
+                    description:str=None,
+                    localPath:str=None,
+                    remPath:str=None,
+                    getZip:bool=False,
+                    port:int=None,
+                    remSavf=True,
+                    version:str=None
+                ) -> bool:
         """
             Saves a complete library from the IBM i to a save file.
 
@@ -157,6 +172,7 @@ class Library:
             Args:
                 library (str): The name of the library to be saved.
                 saveFileName (str): The name of the save file that will be created to hold the library.
+                toLibrary (str, optional): The name of the library to be saved.
                 description (str, optional): A text description for the save file. Defaults to None.
                 localPath (str, optional): The local file path where the downloaded save file will be stored.
                                            Required if `getZip` is True. Defaults to None.
@@ -166,7 +182,8 @@ class Library:
                 getZip (bool, optional): If True, the save file will be downloaded to the local machine
                                          and then deleted from the remote IFS. Defaults to False.
                 port (int, optional): The port for the SSH connection. Defaults to 22.
-
+                remSavf (bool, optional): If True, the save file will be automatacly removed from the remote after downloading.
+                version (str): The version of the save file. Defaults to *CURRENT.
             Returns:
                 bool: True if the library was saved successfully (and downloaded if requested),
                       False otherwise.
@@ -187,11 +204,12 @@ class Library:
                 raise ValueError("A local path is required. Use 'localPath' instead.")
             elif localPath[-1] == '/':
                 localPath = localPath[:-1]
-
+        if not version:
+            version = "*CURRENT"
         #starting with mem main Sourcecode of saveLLibrary
         if self.__crtsavf(saveFileName, toLibrary, description):
 
-            command_str: str = f"SAVLIB LIB({library}) DEV(*SAVF) SAVF({toLibrary}/{saveFileName})"
+            command_str: str = f"SAVLIB LIB({library}) DEV(*SAVF) SAVF({toLibrary}/{saveFileName}) TGTRLS({version})"
             try:
                 with self.conn.cursor() as cursor:
                     # execute the Command for creating a Savefile.
@@ -344,14 +362,13 @@ class Library:
 
     def removeFile(self, library:str, saveFileName:str) -> bool:
         """
-        Remove a saved file from the library on the AS400.
+        Remove a (saved) file from the library on the AS400.
         :param library: The name of the library where the save file will be created.
         :param saveFileName: The name of the save file to be created.
         :return:
         Boolean: True if the file was removed successfully, False otherwise.
         """
         command_str: str = f"DLTF FILE({library.upper()}/{saveFileName.upper()})"
-        print(command_str)
         try:
             with self.conn.cursor() as cursor:
                 # execute the Command for deleting a Savefile.
@@ -365,6 +382,194 @@ class Library:
             self.conn.commit()
             return True
 
+    # ------------------------------------------------------
+    # getFileInfo - get all Files and Infos from a Lib
+    # ------------------------------------------------------
+    def getFileInfo(self, library:str, qFiles:bool=False) -> str:
+        """
+        getFileInfo - get all Files and Infos from a Lib
+        :param library: The name of the library where the save file will be created.
+        :param qFiles: If true, get all Files and Infos from Source Physical File
+        :return:
+            str: A Json String with all Files and Infos from a Library
+        """
+        if not library:
+            raise ValueError("A library name is required.")
+
+
+        try:
+            with self.conn.cursor() as cursor:
+                # execute the Command for deleting a Savefile.
+                if not qFiles:
+                    row_title = [
+                        'OBJNAME',
+                        'OBJTYPE',
+                        'OBJOWNER',
+                        'OBJDEFINER',
+                        'OBJCREATED',
+                        'OBJSIZE',
+                        'OBJTEXT',
+                        'OBJLONGNAME',
+                        'LAST_USED_TIMESTAMP',
+                        'LAST_USED_OBJECT',
+                        'DAYS_USED_COUNT',
+                        'LAST_RESET_TIMESTAMP',
+                        'IASP_NUMBER',
+                        'IASP_NAME',
+                        'OBJATTRIBUTE',
+                        'OBJLONGSCHEMA',
+                        'TEXT',
+                        'SQL_OBJECT_TYPE',
+                        'OBJLIB',
+                        'CHANGE_TIMESTAMP',
+                        'USER_CHANGED',
+                        'SOURCE_FILE',
+                        'SOURCE_LIBRARY',
+                        'SOURCE_MEMBER',
+                        'SOURCE_TIMESTAMP',
+                        'CREATED_SYSTEM',
+                        'CREATED_SYSTEM_VERSION',
+                        'LICENSED_PROGRAM',
+                        'LICENSED_PROGRAM_VERSION',
+                        'COMPILER',
+                        'COMPILER_VERSION',
+                        'OBJECT_CONTROL_LEVEL',
+                        'BUILD_ID',
+                        'PTF_NUMBER',
+                        'APAR_ID',
+                        'USER_DEFINED_ATTRIBUTE',
+                        'ALLOW_CHANGE_BY_PROGRAM',
+                        'CHANGED_BY_PROGRAM',
+                        'COMPRESSED',
+                        'PRIMARY_GROUP',
+                        'STORAGE_FREED',
+                        'ASSOCIATED_SPACE_SIZE',
+                        'OPTIMUM_SPACE_ALIGNMENT',
+                        'OVERFLOW_STORAGE',
+                        'OBJECT_DOMAIN',
+                        'OBJECT_AUDIT',
+                        'OBJECT_SIGNED',
+                        'SYSTEM_TRUSTED_SOURCE',
+                        'MULTIPLE_SIGNATURES',
+                        'SAVE_TIMESTAMP',
+                        'RESTORE_TIMESTAMP',
+                        'SAVE_WHILE_ACTIVE_TIMESTAMP',
+                        'SAVE_COMMAND',
+                        'SAVE_DEVICE',
+                        'SAVE_FILE_NAME',
+                        'SAVE_FILE_LIBRARY',
+                        'SAVE_VOLUME',
+                        'SAVE_LABEL',
+                        'SAVE_SEQUENCE_NUMBER',
+                        'LAST_SAVE_SIZE',
+                        'JOURNALED',
+                        'JOURNAL_NAME',
+                        'JOURNAL_LIBRARY',
+                        'JOURNAL_IMAGES',
+                        'OMIT_JOURNAL_ENTRY',
+                        'REMOTE_JOURNAL_FILTER',
+                        'JOURNAL_START_TIMESTAMP',
+                        'APPLY_STARTING_RECEIVER',
+                        'APPLY_STARTING_RECEIVER_LIBRARY',
+                        'AUTHORITY_COLLECTION_VALUE'
+                    ]
+                    #generate Normal CMD Command
+                    cmdString = f"SELECT * FROM TABLE (QSYS2.OBJECT_STATISTICS('{library}','*ALL') ) AS X"
+
+                if qFiles:
+                    cmdString = f"SELECT * FROM QSYS2.SYSMEMBERSTAT WHERE SYSTEM_TABLE_SCHEMA = '{library}' AND SOURCE_TYPE IS NOT NULL ORDER BY SYSTEM_TABLE_MEMBER"
+                    row_title = [
+                        'TABLE_SCHEMA',
+                        'TABLE_NAME',
+                        'SYSTEM_TABLE_SCHEMA',
+                        'SYSTEM_TABLE_NAME',
+                        'SYSTEM_TABLE_MEMBER',
+                        'SOURCE_TYPE',
+                        'LAST_SOURCE_UPDATE_TIMESTAMP',
+                        'TEXT_DESCRIPTION',
+                        'CREATE_TIMESTAMP',
+                        'LAST_CHANGE_TIMESTAMP',
+                        'LAST_SAVE_TIMESTAMP',
+                        'LAST_RESTORE_TIMESTAMP',
+                        'LAST_USED_TIMESTAMP',
+                        'DAYS_USED_COUNT',
+                        'LAST_RESET_TIMESTAMP',
+                        'TABLE_PARTITION',
+                        'PARTITION_TYPE',
+                        'PARTITION_NUMBER',
+                        'NUMBER_DISTRIBUTED_PARTITIONS',
+                        'NUMBER_PARTITIONING_KEYS',
+                        'PARTITIONING_KEYS',
+                        'LOWINCLUSIVE',
+                        'LOWVALUE',
+                        'HIGHINCLUSIVE',
+                        'HIGHVALUE',
+                        'NUMBER_ROWS',
+                        'NUMBER_PAGES',
+                        'OVERFLOW',
+                        'AVGROWSIZE',
+                        'NUMBER_DELETED_ROWS',
+                        'DATA_SIZE',
+                        'VARIABLE_LENGTH_SIZE',
+                        'VARIABLE_LENGTH_SEGMENTS',
+                        'COLUMN_STATS_SIZE',
+                        'MAINTAINED_TEMPORARY_INDEX_SIZE',
+                        'NUMBER_DISTINCT_INDEXES',
+                        'OPEN_OPERATIONS',
+                        'CLOSE_OPERATIONS',
+                        'INSERT_OPERATIONS',
+                        'BLOCKED_INSERT_OPERATIONS',
+                        'BLOCKED_INSERT_ROWS',
+                        'UPDATE_OPERATIONS',
+                        'DELETE_OPERATIONS',
+                        'CLEAR_OPERATIONS',
+                        'COPY_OPERATIONS',
+                        'REORGANIZE_OPERATIONS',
+                        'INDEX_BUILDS',
+                        'LOGICAL_READS',
+                        'PHYSICAL_READS',
+                        'SEQUENTIAL_READS'
+                        'RANDOM_READS',
+                        'NEXT_IDENTITY_VALUE',
+                        'KEEP_IN_MEMORY',
+                        'MEDIA_PREFERENCE',
+                        'VOLATILE',
+                        'PARTIAL_TRANSACTION',
+                        'APPLY_STARTING_RECEIVER_LIBRARY',
+                        'APPLY_STARTING_RECEIVER'
+                    ]
+
+                cursor.execute(cmdString)
+
+
+                result_list = []
+                rows = cursor.fetchall()
+                if len(rows) == 0:
+                    return f'No Files Found in Library: {library}'
+                for row in rows:
+                    # 1. Create the dictionary for the current row
+                    row_dict = dict(zip(row_title, row))
+
+                    # 2. Iterate through the dictionary's items to find and convert datetimes
+                    for key, value in row_dict.items():
+                        if isinstance(value, (datetime, date)):
+                            # Convert the datetime object to a standardized ISO 8601 string
+                            row_dict[key] = value.isoformat()
+                        elif isinstance(value, Decimal):
+                            row_dict[key] = str(value)
+
+                    # 3. Append the now JSON-safe dictionary to the list
+                    result_list.append(row_dict)
+
+                # Convert the list of dictionaries into a JSON string
+                json_string = json.dumps(result_list, indent=4)
+        except Exception as e:
+            print(f"An error occurred while executing command, with showing Lib Files: {e}")
+            self.conn.rollback()
+            return False
+        else:
+            self.conn.commit()
+            return json_string
 
     # ------------------------------------------------------
     # iClose - close connection
