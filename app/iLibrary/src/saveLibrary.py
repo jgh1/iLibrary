@@ -4,6 +4,8 @@ import pyodbc
 import json
 from datetime import datetime, date
 from decimal import Decimal
+from typing import Union
+
 class saveLibrary:
     # ------------------------------------------------------
     # saveLibrary - creating a Savefile and sending to the
@@ -19,7 +21,12 @@ class saveLibrary:
                     getZip:bool=False,
                     port:int=None,
                     remSavf=True,
-                    version:str=None
+                    version:str=None,
+                    max_records: Union[int, str, None] = None,
+                    asp: Union[int, str, None] = None,
+                    waitFile: Union[int, str, None] = None,
+                    share: str = None,  # ( )
+                    authority: str = None  # ( )
                 ) -> bool:
         """
             Saves a complete library from the IBM i to a save file.
@@ -44,11 +51,15 @@ class saveLibrary:
                 port (int, optional): The port for the SSH connection. Defaults to 22.
                 remSavf (bool, optional): If True, the save file will be automatacly removed from the remote after downloading.
                 version (str): The version of the save file. Defaults to *CURRENT.
+                max_records (int, str, optional): The maximum number of records to return. Defaults to *NOMAX. (*NOMAX, 1 - 4293525600)
             Returns:
                 bool: True if the library was saved successfully (and downloaded if requested),
                       False otherwise.
         """
-        #check if something missing from the Arguments
+        # Target Release List
+        trgList:list = ["V7R3M0", "V7R4M0", "V7R5M0", "V7R6M0", "*CURRENT", "*PRV"]
+
+        # check if something missing from the Arguments
         if not library:
             raise ValueError("A library name is required.")
         if not saveFileName:
@@ -64,12 +75,15 @@ class saveLibrary:
                 raise ValueError("A local path is required. Use 'localPath' instead.")
             elif localPath[-1] == '/':
                 localPath = localPath[:-1]
-        if not version:
+        if not version in list(trgList):
             version = "*CURRENT"
-        #starting with mem main Sourcecode of saveLLibrary
-        if self.__crtsavf(saveFileName, toLibrary, description):
+        else:
+            version = version.upper()
 
-            command_str: str = f"SAVLIB LIB({library}) DEV(*SAVF) SAVF({toLibrary}/{saveFileName}) TGTRLS({version})"
+        #starting with mem main Sourcecode of saveLLibrary
+        if self.__crtsavf(saveFileName, toLibrary, description, max_records=max_records, asp=asp, waitFile=waitFile, share=share, authority=authority):
+
+            command_str: str = f"SAVLIB LIB({library.strip()}) DEV(*SAVF) SAVF({toLibrary.strip()}/{saveFileName.strip()}) TGTRLS({version.strip()})"
             try:
                 with self.conn.cursor() as cursor:
                     # execute the Command for creating a Savefile.
@@ -80,8 +94,8 @@ class saveLibrary:
 
                             destination_local_path = join(localPath, saveFileName.upper() + '.savf')
                             command_str = (
-                                f"CPYTOSTMF FROMMBR('/QSYS.LIB/{toLibrary.upper()}.LIB/{saveFileName.upper()}.FILE') "
-                                f"TOSTMF('{remote_temp_savf_path}') STMFOPT(*REPLACE)"
+                                f"CPYTOSTMF FROMMBR('/QSYS.LIB/{toLibrary.upper().strip()}.LIB/{saveFileName.upper().strip()}.FILE') "
+                                f"TOSTMF('{remote_temp_savf_path.strip()}') STMFOPT(*REPLACE)"
                             )
 
                             # Execute the command on the remote system
@@ -121,7 +135,12 @@ class saveLibrary:
     def __crtsavf(self,
                   saveFileName:str,
                   library:str,
-                  description:str=None
+                  description:str=None,
+                  max_records: Union[int, str, None] = None,
+                  asp: Union[int, str, None] = None,
+                  waitFile: Union[int, str, None] = None,
+                  share:str=None,
+                  authority:str=None
                 ) -> bool:
         """
             Sub-function to create a save file on the IBM i server.
@@ -148,10 +167,34 @@ class saveLibrary:
         if not description:
             description = 'A SaveFile from iLibrary'
 
-        # prepare the Command String for creating a Savefile on the AS400 Server.
+        command_str: str = f"CRTSAVF FILE({library.upper().strip()}/{saveFileName.upper().strip()}) TEXT('{description.strip()}')"
 
-        command_str:str = f"CRTSAVF FILE({library.upper()}/{saveFileName.upper()}) TEXT('{description}')"
+        #check max_records for MAXRCDS parameter
+        if self.__validate_max_value(value=max_records, param_name='max_records', str_format=['*NOMAX'], max_limit=4293525600) and not None:
+            command_str += f" MAXRCDS({max_records})"
+        #check asp for ASP 2147483647
+        if self.__validate_max_value(value=asp, param_name='asp', str_format=['*LIBASP'], max_limit=32) and not None:
+            command_str += f" ASP({asp})"
+        if self.__validate_max_value(value=waitFile,param_name='waitFile', str_format=['*IMMED', '*CLS'], max_limit=2147483647) and not None:
+            command_str += f" WAITFILE({waitFile})"
+        if self.__validate_max_value(value=share, param_name='share', str_format=['*YES', '*NO']) and not None:
+            command_str += f" SHARE({share})"
 
+        if authority is not None:
+            upper_authority = authority.upper()
+
+            # 1. Check for custom authority (not in list AND up to 10 chars)
+            if upper_authority not in ['*EXCLUDE', '*ALL', '*CHANGE', '*LIBCRTAUT', '*USE'] and len(
+                    upper_authority) <= 10:
+                # **CORRECTION 1: Use upper_authority here, not the undefined 'auth'**
+                command_str += f" AUT({upper_authority})"
+                # The 'pass' statements are redundant and can be removed
+
+            # 2. Add an 'elif' to handle the case where it IS one of the standard values
+            elif upper_authority in ['*EXCLUDE', '*ALL', '*CHANGE', '*LIBCRTAUT', '*USE']:
+                command_str += f" AUT({upper_authority})"
+
+        print (command_str)
         try:
             with self.conn.cursor() as cursor:
                 #execute the Command for creating a Savefile.
@@ -165,6 +208,61 @@ class saveLibrary:
             self.conn.commit()
             return True
 
+    # --------------------------------------------------------------------------
+    # __validate_max_value - Helper Function for checking parameter
+    # --------------------------------------------------------------------------
+    def __validate_max_value(self,
+                             value: Union[int, str, None],
+                             param_name: str,
+                             str_format: list[str],
+                             min_limit: int = 1,
+                             max_limit: int = None
+                             ) -> Union[int, str, bool]:  # Includes bool as requested
+        """
+        Validates an input value for 'MAX' type parameters against a custom range.
+        Handles special strings defined in str_format and numeric values.
+
+        Returns: The validated integer, the standardized special string, or False on failure (if no exception is raised).
+        Raises: ValueError for invalid string format or out-of-range number.
+        """
+
+        # Helper for clear error messages
+        str_options = ", ".join([f"'{s}'" for s in str_format])
+
+        # 1. Handle special string
+        if isinstance(value, str):
+            upper_value = value.upper()
+
+            for special_value in str_format:
+                normalized_special_value = special_value.upper()
+
+                if upper_value == special_value.upper() or upper_value == normalized_special_value:
+                    # Found a match! Return the official, fully formatted string.
+                    return special_value
+
+        # 2. Attempt Numeric Conversion (handles int and string-of-int)
+        if value is not None:
+            try:
+                numeric_value = int(value)
+            except ValueError:
+                # Value is an invalid string (e.g., 'hello')
+                raise ValueError(
+                    f"Invalid value for {param_name}. Must be '{str_format}' or a number "
+                    f"between {min_limit} and {max_limit:,}."
+                )
+        else:
+            # If the value is None
+            return False
+
+        # 3. Check Numeric Range
+        if min_limit <= numeric_value <= max_limit:
+            return numeric_value
+        else:
+            # Number is out of range
+            raise ValueError(
+                f"Invalid numeric value for {param_name}. Must be between {min_limit} and {max_limit:,}. "
+                f"Received: {numeric_value}"
+            )
     # ------------------------------------------------------
     # getZipFile - getting the Zipfile from the SaveFile
     # ------------------------------------------------------
