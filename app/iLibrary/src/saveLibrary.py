@@ -14,6 +14,7 @@ class saveLibrary:
     def saveLibrary(self,
                     library:str,
                     saveFileName:str,
+                    dev: str = None,
                     toLibrary:str=None,
                     description:str=None,
                     localPath:str=None,
@@ -57,7 +58,11 @@ class saveLibrary:
                       False otherwise.
         """
         # Target Release List
-        trgList:list = ["V7R3M0", "V7R4M0", "V7R5M0", "V7R6M0", "*CURRENT", "*PRV"]
+        trgList:list = ["V1R1M0", "V1R1M2", "V1R2M0", "V1R3M0", "V2R1M0", "V2R1M1",
+                        "V2R2M0", "V2R3M0", "V3R0M5", "V3R1M0", "V3R2M0", "V3R6M0",
+                        "V3R7M0", "V4R1M0", "V4R2M0", "V4R3M0", "V4R4M0", "V4R5M0",
+                        "V5R1M0", "V5R2M0", "V5R3M0", "V5R4M0", "V6R1M0", "V6R1M1",
+                        "V7R1M0", "V7R2M0", "V7R3M0", "V7R4M0", "V7R5M0", "V7R6M0"]
 
         # check if something missing from the Arguments
         if not library:
@@ -79,11 +84,20 @@ class saveLibrary:
             version = "*CURRENT"
         else:
             version = version.upper()
+        command_str:str = f'SAVLIB'
 
+        validated_library =  self.__validate_max_value(value=library, param_name='library', str_format=['*NONSYS', '*ALLUSR', '*IBM', '*SELECT', '*USRSPC', library])
+        if validated_library:
+            command_str += f' LIB({validated_library})'
+        else:
+            library_str = str(library)
+            raise ValueError(f"The library '{library_str}' is not valid. Must be one of the specified strings or a valid number.")
+        print(command_str)
         #starting with mem main Sourcecode of saveLLibrary
         if self.__crtsavf(saveFileName, toLibrary, description, max_records=max_records, asp=asp, waitFile=waitFile, share=share, authority=authority):
-
-            command_str: str = f"SAVLIB LIB({library.strip()}) DEV(*SAVF) SAVF({toLibrary.strip()}/{saveFileName.strip()}) TGTRLS({version.strip()})"
+            #command_str: str = f"SAVLIB LIB({library.strip()}) DEV(*SAVF) SAVF({toLibrary.strip()}/{saveFileName.strip()}) TGTRLS({version.strip()})"
+            command_str += f" DEV(*SAVF) SAVF({toLibrary.strip()}/{saveFileName.strip()}) TGTRLS({version.strip()})"
+            print(command_str)
             try:
                 with self.conn.cursor() as cursor:
                     # execute the Command for creating a Savefile.
@@ -202,6 +216,20 @@ class saveLibrary:
 
         except Exception as e:
             print(f"An error occurred while executing command: {e}")
+            #remove a SAVF if its exists and we got an error
+            if e.args[0] == 'HY000':
+                sql = """
+                      SELECT 1
+                      FROM QSYS2.SAVE_FILE_INFO
+                      WHERE SAVE_FILE_LIBRARY = ? \
+                        AND SAVE_FILE = ?
+                          FETCH FIRST 1 ROW ONLY \
+                      """
+                cursor = self.conn.cursor()
+                cursor.execute(sql, library, saveFileName)
+                result = cursor.fetchone()
+                if result is not None:
+                    self.removeFile(library=library, saveFileName=saveFileName)
             self.conn.rollback()
             return False
         else:
