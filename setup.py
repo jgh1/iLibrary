@@ -6,7 +6,7 @@ with open("README.md", "r", encoding = "utf-8") as fh:
 setup(  # Note: no 'setuptools.' prefix here
     name = "iLibrary",
     version = "0.0.5",
-    author = "Andreas Legner",
+    author = "jgh1",
     author_email = "iLibrary@legner.beer",
     description = "iLibrary - Tools for IBM i library",
     long_description = long_description,
