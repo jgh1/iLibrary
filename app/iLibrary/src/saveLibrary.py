@@ -1,3 +1,4 @@
+from _ast import Raise
 from os.path import join
 import paramiko
 import pyodbc
@@ -15,6 +16,7 @@ class saveLibrary:
                     library:str,
                     saveFileName:str,
                     dev: str = None,
+                    vol:str=None,
                     toLibrary:str=None,
                     description:str=None,
                     localPath:str=None,
@@ -26,8 +28,8 @@ class saveLibrary:
                     max_records: Union[int, str, None] = None,
                     asp: Union[int, str, None] = None,
                     waitFile: Union[int, str, None] = None,
-                    share: str = None,  # ( )
-                    authority: str = None  # ( )
+                    share: str = None,
+                    authority: str = None
                 ) -> bool:
         """
             Saves a complete library from the IBM i to a save file.
@@ -40,6 +42,8 @@ class saveLibrary:
             Args:
                 library (str): The name of the library to be saved.
                 saveFileName (str): The name of the save file that will be created to hold the library.
+                dev (str, optional): The device type for the save file. Defaults to '*SAVF'.
+                vol (str, optional): The volume to be used for saving the Library. Defaults is None.
                 toLibrary (str, optional): The name of the library to be saved.
                 description (str, optional): A text description for the save file. Defaults to None.
                 localPath (str, optional): The local file path where the downloaded save file will be stored.
@@ -65,12 +69,16 @@ class saveLibrary:
                         "V7R1M0", "V7R2M0", "V7R3M0", "V7R4M0", "V7R5M0", "V7R6M0"]
 
         # check if something missing from the Arguments
+        #check if Library is empty or not
         if not library:
             raise ValueError("A library name is required.")
+        # check if saveFileName is empty or not
         if not saveFileName:
             raise ValueError("A save file name is required.")
+        #check if toLibrary is empty or not
         if not toLibrary:
             toLibrary = library
+        #check if user want the SaveFile as ZIP File
         if getZip:
             if not remPath:
                 raise ValueError("A remote path is required. Use 'remPath' instead.")
@@ -80,23 +88,31 @@ class saveLibrary:
                 raise ValueError("A local path is required. Use 'localPath' instead.")
             elif localPath[-1] == '/':
                 localPath = localPath[:-1]
+        #check wich Version of SaveFile is wanted
         if not version in list(trgList):
             version = "*CURRENT"
         else:
             version = version.upper()
         command_str:str = f'SAVLIB'
 
+        #check if Library is valid or not
         validated_library =  self.__validate_max_value(value=library, param_name='library', str_format=['*NONSYS', '*ALLUSR', '*IBM', '*SELECT', '*USRSPC', library])
         if validated_library:
             command_str += f' LIB({validated_library})'
         else:
             library_str = str(library)
             raise ValueError(f"The library '{library_str}' is not valid. Must be one of the specified strings or a valid number.")
-        print(command_str)
+        #check Dev - Device
+        if not dev in ['*SAVF', '*MEDDFN']:
+            command_str += f' DEV(*SAVF)'
+        else:
+            command_str += f' DEV({dev.upper()})'
+        if vol is not None and vol == '*MOUNTED':
+            command_str += f' VOL({vol})'
         #starting with mem main Sourcecode of saveLLibrary
         if self.__crtsavf(saveFileName, toLibrary, description, max_records=max_records, asp=asp, waitFile=waitFile, share=share, authority=authority):
             #command_str: str = f"SAVLIB LIB({library.strip()}) DEV(*SAVF) SAVF({toLibrary.strip()}/{saveFileName.strip()}) TGTRLS({version.strip()})"
-            command_str += f" DEV(*SAVF) SAVF({toLibrary.strip()}/{saveFileName.strip()}) TGTRLS({version.strip()})"
+            command_str += f" SAVF({toLibrary.strip()}/{saveFileName.strip()}) TGTRLS({version.strip()})"
             print(command_str)
             try:
                 with self.conn.cursor() as cursor:
@@ -126,10 +142,10 @@ class saveLibrary:
                                     raise ValueError(f"The Save File {saveFileName} was not successfully removed.")
 
                         except Exception as e:
-                            print(f"An error occurred during the transfer process: {e}")
+                            self.__handle_error(error=e, pgm="saveLibrary - Transfer")
 
             except Exception as e:
-                print(f"An error occurred while executing command: {e}")
+                self.__handle_error(error=e, pgm="saveLibrary")
                 self.conn.rollback()
                 return False
             else:
@@ -215,7 +231,7 @@ class saveLibrary:
                 cursor.execute("CALL QSYS2.QCMDEXC(?)", (command_str))
 
         except Exception as e:
-            print(f"An error occurred while executing command: {e}")
+            self.__handle_error(error=e, pgm="__crtsavf")
             #remove a SAVF if its exists and we got an error
             if e.args[0] == 'HY000':
                 sql = """
@@ -370,9 +386,25 @@ class saveLibrary:
                 cursor.execute("CALL QSYS2.QCMDEXC(?)", (command_str))
 
         except Exception as e:
-            print(f"An error occurred while executing command, with deleting SavFile: {e}")
+            self.__handle_error(error=e, pgm="removeFile")
             self.conn.rollback()
             return False
         else:
             self.conn.commit()
             return True
+
+
+    def __handle_error(self, error, pgm:str):
+        """
+            Handle ODBC Errors and foramt them
+        :param error:
+        :param pgm:
+        :return:
+        """
+        print("-------------------------------------------------------------")
+        print(f"An error occurred while executing command in function {pgm}:")
+        sqlstate = error.args[0]
+        error_message = error.args[1]
+
+        print(f"SQLSTATE: {sqlstate}")
+        print(f"Message: {error_message}")
