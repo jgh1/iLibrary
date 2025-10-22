@@ -1,0 +1,17 @@
+{
+  "name": "docs",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "keywords": [],
+  "author": "jgh1",
+  "license": "MIT",
+  "description": "A Python package for IBM i user libraries.",
+  "devDependencies": {
+    "vitepress": "^2.0.0-alpha.12"
+  }
+}
