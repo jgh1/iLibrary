@@ -10,14 +10,14 @@ RUN npm ci
 COPY ./docs ./
 
 # Build the VitePress docs (from /docs)
-RUN npm run docs:build
+RUN npm run build
 
 # --- Stage 2: Production stage ---
 FROM nginx:stable-alpine
 WORKDIR /usr/share/nginx/html
 
 # Copy only the built VitePress output
-COPY --from=builder /app/docs/.vitepress/dist ./
+COPY --from=builder /app/.vitepress/dist ./
 
 EXPOSE 80
 
