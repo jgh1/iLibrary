@@ -2,7 +2,7 @@
 
 A lightweight Python helper for working with IBM i (AS/400) libraries. It connects via ODBC (pyodbc) for DB2/SQL queries and uses Paramiko for SSH/SFTP to save and transfer library save files (SAVF).
 
-[PyPI downloads](https://pepy.tech/projects/ilibrary)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/ilibrary?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=MAGENTA&left_text=downloads)](https://pepy.tech/projects/ilibrary)
 
 Overview
 - Query library metadata using QSYS2 services
@@ -18,7 +18,7 @@ Requirements
 - Network access to the IBM i for ODBC and SSH/SFTP
 
 Installation
-- From PyPI: pip install iLibrary
+- From PyPI: `pip install iLibrary`
 - From source:
   - Clone the repo
   - Optionally create and activate a virtual environment
