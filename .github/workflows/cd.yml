@@ -1,0 +1,15 @@
+name: CD - Update docs
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install CapRover
+        run: npm install -g caprover
+
+      - name: Deploy
+        run: caprover deploy --host ${{ secrets.CAPROVER_SERVER }} --appToken ${{ secrets.APP_TOKEN }} --appName ${{ secrets.APP_NAME }} --branch ${{ github.ref_name }}
