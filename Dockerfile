@@ -3,11 +3,11 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install dependencies
-COPY package*.json ./
+COPY docs/package*.json ./
 RUN npm ci
 
 # Copy all source files
-COPY ./docs ./docs
+COPY ./docs ./
 
 # Build the VitePress docs (from /docs)
 RUN npm run docs:build
