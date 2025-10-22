@@ -84,7 +84,6 @@ Documentation
 - Troubleshooting: [[docs/troubleshooting.md]]
 
 Contributing
-- See .junie/guidelines.md for project structure and development practices.
 - Please run tests or the sample script before submitting changes.
 
 License
