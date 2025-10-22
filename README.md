@@ -1,151 +1,92 @@
-## iLibrary [![PyPI Downloads](https://static.pepy.tech/personalized-badge/ilibrary?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=MAGENTA&left_text=downloads)](https://pepy.tech/projects/ilibrary)
-  
-This class provides methods to connect to the system via pyodbc for SQL and paramiko for SFTP transfers.  
+# iLibrary
 
-### Modules  required
-  ---
-* json  
-* os  
-* paramiko  
-* pyodbc  
-  
-### Class Library  
-  ---
-A class to manage libraries and files on an IBM i system. It provides methods to connect to the system via pyodbc for SQL and paramiko for SFTP transfers.  
-  
-### Methods  
-  ---
-#### __enter__(self) -> 'Library'  
----  
-Establishes the database connection when entering a `with` block.  
-  
-#### __exit__(self, exc_type, exc_val, exc_tb)  
----
-Closes the database connection when exiting a `with` block. This method is called automatically, even if an error occurred.  
-  
-#### __init__(self, db_user: str, db_password: str, db_host: str, db_driver: str)  
----
-Initializes the class attributes for a database connection. The actual connection is established in the `__enter__` method.  
-  
-* **Args**:  
-  
-  * **`db_user` (`str`):** The user ID for the database connection.  
-  * **`db_password` (`str`):** The password for the database user.  
-  * **`db_host` (`str`):** The system/host name for the database connection.  
-  * **`db_driver` (`str`):** The ODBC driver to be used.  
-#### getInfoForLibrary()
----
-Retrieves information about a specific library.  
-  
-**Args:**  
-  
-  * **`library` (`str`):** The name of the library to retrieve information about.  
-  * **`wantJson` (`bool`, optional):** If set to `True`, the function returns a JSON-formatted string. If `False`, it returns a Python object. Defaults to `True`.  
-**Returns:**  
-  
-  * **`str`:** A JSON string if `wantJson` is True.  
-  * **`obj`:** A Python object if `wantJson` is False.  
-  
-**Example:**  
-  
+A lightweight Python helper for working with IBM i (AS/400) libraries. It connects via ODBC (pyodbc) for DB2/SQL queries and uses Paramiko for SSH/SFTP to save and transfer library save files (SAVF).
+
+[PyPI downloads](https://pepy.tech/projects/ilibrary)
+
+Overview
+- Query library metadata using QSYS2 services
+- List objects in a library (and optionally source physical files)
+- Create a save file (SAVF) for a library via SAVLIB and optionally download it
+- Remove save files
+- Simple context manager to handle DB connection lifecycle
+
+Requirements
+- Python 3.8+
+- IBM i system access
+- IBM i Access ODBC Driver (or compatible) installed locally
+- Network access to the IBM i for ODBC and SSH/SFTP
+
+Installation
+- From PyPI: pip install iLibrary
+- From source:
+  - Clone the repo
+  - Optionally create and activate a virtual environment
+  - pip install -r requirements.txt
+  - pip install -e .
+
+Quickstart
 ```python
-from os.path import join, dirname  
-import os  
-from dotenv import load_dotenv  
-import iLibrary  
-  
-#load ENV file and get the Connection Settings  
-dotenv_path = join(dirname(__file__), '.env')  
-load_dotenv(dotenv_path)  
-DB_DRIVER = os.environ.get("DB_DRIVER")  
-DB_USER = os.environ.get("DB_USER")  
-DB_PASSWORD = os.environ.get("DB_PASSWORD")  
-DB_SYSTEM = os.environ.get("DB_SYSTEM")  
-  
-  
-if __name__ == "__main__":  
-    try:  
-        with iLibrary.Library(DB_USER, DB_PASSWORD, DB_SYSTEM, DB_DRIVER) as lib:  
-            #try to get the SAVF File from the IBM i Server  
-            result = lib.getInfoForLibrary('LIB_NAME')  
-            print(f"Query result: {result}")  
-  
-    except Exception as e:  
-        print(f"An error occurred in the main block: {e}")
+from os.path import join, dirname
+import os
+from dotenv import load_dotenv
+from iLibrary import Library
+
+# Load ENV file and get the connection settings
+dotenv_path = join(dirname(__file__), '.env')
+load_dotenv(dotenv_path)
+DB_DRIVER = os.environ.get("DB_DRIVER")
+DB_USER = os.environ.get("DB_USER")
+DB_PASSWORD = os.environ.get("DB_PASSWORD")
+DB_SYSTEM = os.environ.get("DB_SYSTEM")
+
+with Library(DB_USER, DB_PASSWORD, DB_SYSTEM, DB_DRIVER) as lib:
+    print(lib.getLibraryInfo('QGPL', wantJson=True))
+    print(lib.getFileInfo('QGPL'))
 ```
 
-#### removeFile(self) 
----
-Remove a saved file from the library on the AS400.
-**Args** 
-* *`library`*: The name of the library where the save file will be created.
-* *`saveFileName`*: The name of the save file to be created.
-**Returns**
-* *`Boolean`*: True if the file was removed successfully, False otherwise.
+Save a library to SAVF and optionally download it
 ```python
-if __name__ == "__main__":  
-    try:  
-        with iLibrary.Library(DB_USER, DB_PASSWORD, DB_SYSTEM, DB_DRIVER) as lib:  
-            result = lib.removeFile(library='LIB_NAME', saveFileName='SAVE_FILE_NAME') 
-            print(f"Query result: {result}")  
-  
-    except Exception as e:  
-        print(f"An error occurred in the main block: {e}")
+from os.path import dirname
+
+with Library(DB_USER, DB_PASSWORD, DB_SYSTEM, DB_DRIVER) as lib:
+    ok = lib.saveLibrary(
+        library='MYLIB',
+        saveFileName='MYLIBSAVE',
+        description='Backup',
+        localPath=dirname(__file__),
+        remPath='/home/MYUSER/',
+        getZip=True
+    )
+    print('Saved:', ok)
 ```
 
-#### iclose(self)  
-  ---
-A helper method to close the connection, also useful for manual closure.  
-  
-#### saveLibrary()
----
-  
-Saves a complete library from the IBM i to a save file.  
-  
-This method creates a save file on the IBM i and then uses the `SAVLIB` (Save Library) CL command to save the specified library's contents into it. Optionally, it can download the resulting save file to the local machine as a ZIP file.  
-  
-**Args:**  
-  
-* **`library` (`str`):** The name of the library to be saved.  
-  
-* **`saveFileName` (`str`):** The name of the save file that will be created to hold the library.  
-  
-* **`description` (`str`, optional):** A text description for the save file. Defaults to None.  
-  
-* **`localPath` (`str`, optional):** The local file path where the downloaded save file will be stored. Required if `getZip` is True. Defaults to None.  
-  
-* **`remPath` (`str`, optional):** The remote file path on the IBM i's IFS where the save file will be temporarily stored before downloading. Required if `getZip` is True. Defaults to None.  
-  
-* **`getZip` (`bool`, optional):** If True, the save file will be downloaded to the local machine and then deleted from the remote IFS. Defaults to False.  
-  
-* **`port` (`int`, optional):** The port for the SSH connection. Defaults to 22.  
-  
- **Returns:**
-* **`bool`:** `True` if the library was saved successfully (and downloaded if requested), `False` otherwise.  
-**Example**
-```python
-from os.path import join, dirname  
-import os  
-from dotenv import load_dotenv  
-import iLibrary  
-  
-#load ENV file and get the Connection Settings  
-dotenv_path = join(dirname(__file__), '.env')  
-load_dotenv(dotenv_path)  
-DB_DRIVER = os.environ.get("DB_DRIVER")  
-DB_USER = os.environ.get("DB_USER")  
-DB_PASSWORD = os.environ.get("DB_PASSWORD")  
-DB_SYSTEM = os.environ.get("DB_SYSTEM")  
-  
-  
-if __name__ == "__main__":  
-    try:  
-        with iLibrary.Library(DB_USER, DB_PASSWORD, DB_SYSTEM, DB_DRIVER) as lib:  
-            #try to get the SAVF File from the IBM i Server  
-            result = lib.saveLibrary(library='YOUR_LIB',   saveFileName='SAVEFILE_NAME', getZip=True, localPath=join(dirname(__file__)), remPath='/home/USERNAME/')  
-            print(f"Query result: {result}")  
-  
-    except Exception as e:  
-        print(f"An error occurred in the main block: {e}")
-```
+API overview
+- Library(db_user, db_password, db_host, db_driver)
+  - __enter__ / __exit__ for connection lifecycle
+  - iclose(): manually close the connection
+- getLibraryInfo(library: str, wantJson: bool = True) -> str | tuple
+- getFileInfo(library: str, qFiles: bool = False) -> str
+- saveLibrary(library: str, saveFileName: str, ..., getZip: bool = False, ...) -> bool
+- removeFile(library: str, saveFileName: str) -> bool
+
+Configuration
+- Environment variables expected:
+  - DB_DRIVER: e.g. {IBM i Access ODBC Driver}
+  - DB_USER
+  - DB_PASSWORD
+  - DB_SYSTEM
+
+Documentation
+- Installation guide: [[docs/installation.md]]
+- Usage examples: [[docs/usage.md]]
+- Full API reference: [[docs/api.md]]
+- Troubleshooting: [[docs/troubleshooting.md]]
+
+Contributing
+- See .junie/guidelines.md for project structure and development practices.
+- Please run tests or the sample script before submitting changes.
+
+License
+- See the repository license file if present.
   

@@ -10,16 +10,30 @@ DB_DRIVER = os.environ.get("DB_DRIVER")
 DB_USER = os.environ.get("DB_USER")
 DB_PASSWORD = os.environ.get("DB_PASSWORD")
 DB_SYSTEM = os.environ.get("DB_SYSTEM")
+DB_CREDENTIALS = {
+    "db_user": DB_USER,
+    "db_password": DB_PASSWORD,
+    "db_host": DB_SYSTEM,
+    "db_driver": DB_DRIVER
+}
 
 
 if __name__ == "__main__":
     try:
-        with iLibrary.Library(DB_USER, DB_PASSWORD, DB_SYSTEM, DB_DRIVER) as lib:
-            #result = lib.saveLibrary(library='ALBEER1', saveFileName='TEstFi1e', getZip=True, localPath=join(dirname(__file__)), remPath='/home/ALBEER/', port=2222, toLibrary='ALBEER1', remSavf=False)
-            #try to get the SAVF File from the IBM i Server
-            #result = lib.removeSaveFile(library='ALBEER2', saveFileName='TE16ST')
-            result = lib.getFileInfo('ACERBIS2', qFiles=False)
-            print(f"Query result: {result}")
+        with iLibrary.Library(**DB_CREDENTIALS) as lib:
+            # Backup a library and download the save file
+            was_saved = lib.saveLibrary(
+                library='YOURPRODLIB',
+                saveFileName='PRODLIBSAV',
+                getZip=True,
+                localPath=f'{os.getcwd()}/backups',
+                remPath='/home/<YOUR USERNAME>/',
+                remSavf=True
+            )
 
-    except Exception as e:
-        print(f"An error occurred in the main block: {e}")
+            if was_saved:
+                print("Backup successful. Cleaning up remote file.")
+                lib.removeFile(library='PRODLIB', saveFileName='PRODLIBSAV')
+
+    except ValueError as e:
+        print(f"Invalid parameter specified: {e}")
