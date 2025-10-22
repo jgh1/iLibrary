@@ -42,9 +42,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y unixodbc unixodbc-dev
 
-          # Now, install the local .deb package from your repository
-          # IMPORTANT: Update the filename below to match the one you added
-          sudo apt install -y ./.github/installers/ibm-iaccess-1.1.0.24-1.0.amd64.deb
+          # Use dpkg for direct installation of the local .deb file
+          # This replaces 'apt install ./file.deb' which was causing the error
+          sudo dpkg -i ./.github/installers/ibm-iaccess-1.1.0.24-1.0.amd64.deb
+
+          # This command is crucial: it installs any missing dependencies
+          sudo apt-get install --fix-broken -y
 
       # 4. Install Python dependencies
       - name: Install Python dependencies
